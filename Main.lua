@@ -4,15 +4,12 @@ local Combo = nil
 
 local function UpdateComboZone(zone)
   if Combo == nil then
-
     Combo = ComboZone:Create({zone}, {name="combo", debugPoly=false})
     Active[zone["name"]] = zone
     
     Combo:onPlayerInOutExhaustive(function(isPointInside, point, insideZones, enteredZones, leftZones)
-
       if enteredZones then
         for i=1, #enteredZones do
-          --print("Entered: " ..enteredZones[i]["name"])
           TriggerEvent("ps-zones:enter", enteredZones[i]["name"], enteredZones[i]["data"])
           TriggerServerEvent("ps-zones:enter", enteredZones[i]["name"], enteredZones[i]["data"])
         end
@@ -20,65 +17,68 @@ local function UpdateComboZone(zone)
   
       if leftZones then
         for i=1, #leftZones do
-          --print("Left: " ..leftZones[i]["name"])
           TriggerEvent("ps-zones:leave", leftZones[i]["name"], leftZones[i]["data"])
           TriggerServerEvent("ps-zones:leave", leftZones[i]["name"], leftZones[i]["data"])
         end
       end
     end)
-
   else
     Combo:AddZone(zone)
     Active[zone["name"]] = zone
   end
-
 end
 
 local function ZoneExist(name)
-  if Active[name] then
-    return true
-  else 
-    return false 
+  return Active[name] ~= nil
+end
+
+local function CreateZone(type, name, ...)
+  if ZoneExist(name) then
+    print("Zone with that name already exists")
+    return
   end
+  local data = select(#{...}, ...) > 0 and select(#{...}, ...) or {}
+  data.name = name
+
+  local zone
+  if type == "box" then
+    zone = BoxZone:Create(...)
+  elseif type == "poly" then
+    zone = PolyZone:Create(...)
+  elseif type == "circle" then
+    zone = CircleZone:Create(...)
+  elseif type == "entity" then
+    zone = EntityZone:Create(...)
+  else
+    print("Unknown zone type")
+    return
+  end
+
+  UpdateComboZone(zone)
 end
 
 exports("CreateBoxZone", function(name, point, length, width, data)
-  if ZoneExist(name) then return print("Zone with that name already exists") end
-  if not data then data = {} end
-  data.name = name
-  local box = BoxZone:Create(point, length, width, data)
-  UpdateComboZone(box)
+  CreateZone("box", name, point, length, width, data)
 end)
 
 exports("CreatePolyZone", function(name, points, data)
-  if ZoneExist(name) then return print("Zone with that name already exists") end
-  if not data then data = {} end
-  data.name = name
-  local poly = PolyZone:Create(points, data)
-  UpdateComboZone(poly)
+  CreateZone("poly", name, points, data)
 end)
 
 exports("CreateCircleZone", function(name, point, radius, data)
-  if ZoneExist(name) then return print("Zone with that name already exists") end
-  if not data then data = {} end
-  data.name = name
-  local circle = CircleZone:Create(point, radius, data)
-  UpdateComboZone(circle)
+  CreateZone("circle", name, point, radius, data)
 end)
 
 exports("CreateEntityZone", function(name, entity, data)
-  if ZoneExist(name) then return print("Zone with that name already exists") end
-  if not data then data = {} end
-  data.name = name
-  local entity = EntityZone:Create(entity, data)
-  UpdateComboZone(entity)
+  CreateZone("entity", name, entity, data)
 end)
 
 exports("DestroyZone", function(name)
-  if not ZoneExist(name) then return print("Zone doesn't exist") end
-  if Active[name] then
-    Combo:RemoveZone(name)
-    Active[name]:destroy()
-    Active[name] = nil
+  if not ZoneExist(name) then
+    print("Zone doesn't exist")
+    return
   end
+  Combo:RemoveZone(Active[name])
+  Active[name]:destroy()
+  Active[name] = nil
 end)
